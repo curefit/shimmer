@@ -12,7 +12,7 @@ We currently support the following APIs
 * [RunKeeper](https://runkeeper.com/index)
 * [Withings](http://www.withings.com/)
 
-This README should have everything you need to get started. If you have any questions, feel free to [open an issue](https://github.com/openmhealth/shimmer/issues), [email us](mailto://support@openmhealth.org), [post on our form](https://groups.google.com/forum/#!forum/omh-developers), or [visit our website](http://www.openmhealth.org/documentation/#/data-providers/get-started).
+This  should have everything you need to get started. If you have any questions, feel free to [open an issue](https://github.com/openmhealth/shimmer/issues), [email us](mailto://support@openmhealth.org), [post on our form](https://groups.google.com/forum/#!forum/omh-developers), or [visit our website](http://www.openmhealth.org/documentation/#/data-providers/get-started).
 
 ## Contents
 - [Overview](#overview)
@@ -106,6 +106,55 @@ If you want to build and run the code in Docker, in a terminal
 1. Visit `http://<shimmer-host>:8083` in a browser to open the console.
 
 > If you can't run the Bash scripts on your system, open them and take a look at the commands they run. The important commands are marked with a "#CMD" comment.
+
+### Option 3. Include it in your codebase as a maven dependency
+
+This jar is hosted on the private maven repo [s3://repo.mvn.com.curefit/release](s3://repo.mvn.com.curefit/release).
+
+If you wish to include shimmer into your codebase as a maven dependency, you need to include the following changes into your `pom.xml`.
+
+1. Add the private repository to the `<repositories>` section. 
+```xml
+<repositories>
+...
+    <repository>
+	    <id>curefit-s3-release-repo</id>
+        <name>S3 Release Repository for Curefit</name>
+        <url>s3://repo.mvn.com.curefit/release</url>
+        <releases><enabled>true</enabled></releases>
+        <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+    <repository>
+        <id>bintray-repo-maven</id>
+        <url>https://dl.bintray.com/openmhealth/maven</url>
+    </repository>
+...
+</repositories>
+
+```
+2. Include the maven dependency
+```xml
+<dependencies>
+...
+    <dependency>
+        <groupId>org.openmhealth.shim</groupId>
+        <artifactId>shimmer</artifactId>
+        <version>0.6.0</version>
+    </dependency>
+    <dependency>
+        <groupId>org.openmhealth.shim</groupId>
+        <artifactId>omh-shim-sdk</artifactId>
+        <version>1.0.0</version>
+    </dependency>
+    <dependency>
+        <groupId>org.openmhealth.schema</groupId>
+        <artifactId>omh-schema-sdk</artifactId>
+        <version>1.2.1</version>
+        <type>pom</type>
+    </dependency>
+...
+</dependencies>
+```
 
 ## Registering with third-party APIs
 
