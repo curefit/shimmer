@@ -1,5 +1,6 @@
 subprojects {
     apply plugin: "java"
+    apply plugin: "maven"
 
     repositories {
         mavenLocal()
@@ -22,6 +23,6 @@ subprojects {
     }
 }
 
-task wrapper(type: Wrapper) {
-    gradleVersion = "4.1"
+task wrapper(type: Wrapper, overwrite: true) {
+    gradleVersion = "5.0"
 }
