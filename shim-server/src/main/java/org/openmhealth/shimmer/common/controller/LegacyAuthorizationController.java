@@ -17,8 +17,35 @@
 
 package org.openmhealth.shimmer.common.controller;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.openmhealth.shim.OAuth2Shim.REDIRECT_URL_KEY;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+import static org.springframework.http.ResponseEntity.badRequest;
+import static org.springframework.http.ResponseEntity.ok;
+import static org.springframework.web.bind.annotation.RequestMethod.DELETE;
+import static org.springframework.web.bind.annotation.RequestMethod.GET;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
+
 import com.google.common.collect.Maps;
-import org.openmhealth.shim.*;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
+import org.openmhealth.shim.AccessParameters;
+import org.openmhealth.shim.AccessParametersRepo;
+import org.openmhealth.shim.AuthorizationRequestParameters;
+import org.openmhealth.shim.AuthorizationRequestParametersRepo;
+import org.openmhealth.shim.AuthorizationResponse;
+import org.openmhealth.shim.ShimAuthentication;
+import org.openmhealth.shim.ShimException;
+import org.openmhealth.shim.ShimRegistry;
+import org.openmhealth.shimmer.common.domain.AccessTokenDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,22 +55,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.common.DefaultOAuth2AccessToken;
+import org.springframework.util.SerializationUtils;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.*;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.openmhealth.shim.OAuth2Shim.REDIRECT_URL_KEY;
-import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
-import static org.springframework.http.ResponseEntity.badRequest;
-import static org.springframework.http.ResponseEntity.ok;
-import static org.springframework.web.bind.annotation.RequestMethod.*;
 
 
 /**
@@ -56,7 +75,8 @@ import static org.springframework.web.bind.annotation.RequestMethod.*;
 @RestController
 public class LegacyAuthorizationController {
 
-    private static final Logger logger = LoggerFactory.getLogger(LegacyAuthorizationController.class);
+    private static final Logger logger = LoggerFactory
+        .getLogger(LegacyAuthorizationController.class);
 
     @Autowired
     private AccessParametersRepo accessParametersRepo;
@@ -75,10 +95,12 @@ public class LegacyAuthorizationController {
      * @return List of access parameters.
      */
     @RequestMapping(value = "authorizations", produces = APPLICATION_JSON_VALUE)
-    public List<Map<String, Object>> authorizations(@RequestParam(value = "username") String username)
-            throws ShimException {
+    public List<Map<String, Object>> authorizations(
+        @RequestParam(value = "username") String username)
+        throws ShimException {
 
-        List<AccessParameters> accessParameters = accessParametersRepo.findAllByUsernameLike(username);
+        List<AccessParameters> accessParameters = accessParametersRepo
+            .findAllByUsernameLike(username);
 
         List<Map<String, Object>> results = new ArrayList<>();
         Map<String, Set<String>> auths = new HashMap<>();
@@ -101,16 +123,16 @@ public class LegacyAuthorizationController {
      * Endpoint for triggering domain approval.
      *
      * @param username The user record for which we're authorizing a shim.
-     * @param dataProviderRedirectUrl The URL to which the the data provider will redirect the user's browser after an
-     * authorization
+     * @param dataProviderRedirectUrl The URL to which the the data provider will redirect the
+     * user's browser after an authorization
      * @param shim The shim registry key of the shim we're approving
      * @return AuthorizationRequest parameters, including a boolean flag if already authorized.
      */
     @RequestMapping(value = "/authorize/{shim}", produces = APPLICATION_JSON_VALUE)
     public AuthorizationRequestParameters initiateAuthorization(
-            @RequestParam(value = "username") String username,
-            @RequestParam(value = "redirect_url", required = false) String dataProviderRedirectUrl,
-            @PathVariable("shim") String shim) throws ShimException {
+        @RequestParam(value = "username") String username,
+        @RequestParam(value = "redirect_url", required = false) String dataProviderRedirectUrl,
+        @PathVariable("shim") String shim) throws ShimException {
 
         logger.debug("Received /authorize/{} request with username {}", shim, username);
 
@@ -121,8 +143,8 @@ public class LegacyAuthorizationController {
         additionalParameters.put(REDIRECT_URL_KEY, dataProviderRedirectUrl);
 
         AuthorizationRequestParameters authorizationRequestParameters = shimRegistry
-                .getShim(shim)
-                .getAuthorizationRequestParameters(username, additionalParameters);
+            .getShim(shim)
+            .getAuthorizationRequestParameters(username, additionalParameters);
 
         authorizationRequestParameters.setUsername(username);
 
@@ -138,12 +160,13 @@ public class LegacyAuthorizationController {
      */
     @RequestMapping(value = "/deauthorize/{shim}", method = DELETE, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<?> removeAuthorization(
-            @RequestParam(value = "username") String username,
-            @PathVariable("shim") String shim)
-            throws ShimException {
+        @RequestParam(value = "username") String username,
+        @PathVariable("shim") String shim)
+        throws ShimException {
 
         // TODO revoke tokens from data provider
-        List<AccessParameters> accessParameters = accessParametersRepo.findAllByUsernameAndShimKey(username, shim);
+        List<AccessParameters> accessParameters = accessParametersRepo
+            .findAllByUsernameAndShimKey(username, shim);
 
         accessParametersRepo.delete(accessParameters);
 
@@ -157,22 +180,25 @@ public class LegacyAuthorizationController {
      * @return AuthorizationResponse object with details and result: authorize, error, or denied.
      */
     // TODO harmonize handling of ShimException, returning correct status codes where relevant
-    @RequestMapping(value = "/authorize/{shim}/callback", method = {POST, GET}, produces = APPLICATION_JSON_VALUE)
+    @RequestMapping(value = "/authorize/{shim}/callback", method = {POST,
+        GET}, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<AuthorizationResponse> processRedirect(
-            @PathVariable("shim") String shimKey,
-            @RequestParam("state") String stateKey,
-            HttpServletRequest servletRequest,
-            HttpServletResponse servletResponse)
-            throws ShimException {
+        @PathVariable("shim") String shimKey,
+        @RequestParam("state") String stateKey,
+        HttpServletRequest servletRequest,
+        HttpServletResponse servletResponse)
+        throws ShimException {
 
-        logger.debug("A redirect has been received for shim '{}' with state key '{}'.", shimKey, stateKey);
+        logger.debug("A redirect has been received for shim '{}' with state key '{}'.", shimKey,
+            stateKey);
 
-        AuthorizationRequestParameters authParams = authorizationRequestParametersRepo.findByStateKey(stateKey);
+        AuthorizationRequestParameters authParams = authorizationRequestParametersRepo
+            .findByStateKey(stateKey);
 
         if (authParams == null) {
             logger.warn(
-                    "The redirect can't be processed because an authorization request with state key '{}' doesn't exist.",
-                    stateKey);
+                "The redirect can't be processed because an authorization request with state key '{}' doesn't exist.",
+                stateKey);
 
             return badRequest().build();
         }
@@ -180,9 +206,9 @@ public class LegacyAuthorizationController {
         setPassThroughAuthentication(authParams.getUsername(), shimKey);
 
         AuthorizationResponse response =
-                shimRegistry
-                        .getShim(shimKey)
-                        .processRedirect(servletRequest);
+            shimRegistry
+                .getShim(shimKey)
+                .processRedirect(servletRequest);
 
         // TODO determine what the HTTP status code should be here
         if (response.getType() != AuthorizationResponse.Type.AUTHORIZED) {
@@ -211,10 +237,10 @@ public class LegacyAuthorizationController {
         if (authParams.getClientRedirectUrl() != null) {
             try {
                 servletResponse.sendRedirect(authParams.getClientRedirectUrl());
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
-                throw new ShimException("Error occurred redirecting to :" + authParams.getRedirectUri());
+                throw new ShimException(
+                    "Error occurred redirecting to :" + authParams.getRedirectUri());
             }
             return null;
         }
@@ -222,11 +248,24 @@ public class LegacyAuthorizationController {
         return ok(response);
     }
 
+    @PostMapping(value = "/authorize")
+    public AccessParameters saveToken(@Valid @RequestBody AccessTokenDto accessTokenDto) {
+        AccessParameters accessParameters = new AccessParameters();
+        accessParameters.setUsername(String.valueOf(accessTokenDto.getUserId()));
+        accessParameters.setShimKey(accessTokenDto.getShim());
+        DefaultOAuth2AccessToken token = new DefaultOAuth2AccessToken(
+            accessTokenDto.getAccessToken());
+        token.setTokenType("Bearer");
+        accessParameters.setSerializedToken(SerializationUtils.serialize(token));
+        return accessParametersRepo.save(accessParameters);
+    }
+
     /**
      * Sets pass through authentication required by spring.
      */
     private void setPassThroughAuthentication(String username, String shim) {
 
-        SecurityContextHolder.getContext().setAuthentication(new ShimAuthentication(username, shim));
+        SecurityContextHolder.getContext()
+            .setAuthentication(new ShimAuthentication(username, shim));
     }
 }
