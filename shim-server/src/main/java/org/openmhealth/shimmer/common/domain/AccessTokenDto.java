@@ -2,16 +2,17 @@ package org.openmhealth.shimmer.common.domain;
 
 
 import javax.validation.constraints.NotNull;
+import org.hibernate.validator.constraints.NotEmpty;
 
 public class AccessTokenDto {
 
     @NotNull
-    private long userId;
+    private Long userId;
 
-    @NotNull
+    @NotEmpty
     private String shim;
 
-    @NotNull
+    @NotEmpty
     private String accessToken;
 
     public long getUserId() {

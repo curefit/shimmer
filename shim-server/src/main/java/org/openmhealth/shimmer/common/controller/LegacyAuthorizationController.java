@@ -248,7 +248,7 @@ public class LegacyAuthorizationController {
         return ok(response);
     }
 
-    @PostMapping(value = "/authorize")
+    @PostMapping(value = "/authorize/save")
     public AccessParameters saveToken(@Valid @RequestBody AccessTokenDto accessTokenDto) {
         AccessParameters accessParameters = new AccessParameters();
         accessParameters.setUsername(String.valueOf(accessTokenDto.getUserId()));
